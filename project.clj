@@ -1,5 +1,5 @@
 (def i18n-version "1.0.3")
-(def dropwizard-metrics-version "3.2.6")
+(def dropwizard-metrics-version "4.2.38")
 
 (defproject org.openvoxproject/trapperkeeper-metrics "2.1.8-SNAPSHOT"
   :description "Trapperkeeper Metrics Service"
