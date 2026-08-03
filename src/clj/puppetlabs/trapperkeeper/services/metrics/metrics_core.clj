@@ -13,6 +13,7 @@
             [puppetlabs.ring-middleware.utils :as ringutils]
             [puppetlabs.trapperkeeper.services.metrics.jolokia :as jolokia]
             [puppetlabs.trapperkeeper.services.metrics.metrics-utils :as metrics-utils]
+            [puppetlabs.trapperkeeper.services.metrics.otel-core :as otel]
             [ring.middleware.content-type :as ring-content-type]
             [ring.middleware.keyword-params :as ring-keyword-params]
             [ring.middleware.not-modified :as ring-not-modified]
@@ -34,7 +35,8 @@
 
 (def WebserviceConfig
   {(schema/optional-key :mbeans) MbeansApiConfig
-   (schema/optional-key :jolokia) JolokiaApiConfig})
+   (schema/optional-key :jolokia) JolokiaApiConfig
+   (schema/optional-key :opentelemetry) {(schema/optional-key :enabled) schema/Bool}})
 
 (def BaseGraphiteReporterConfig
   {:host schema/Str
@@ -68,7 +70,8 @@
   {:server-id                       schema/Str
    (schema/optional-key :registries) RegistriesConfig
    (schema/optional-key :reporters) ReportersConfig
-   (schema/optional-key :metrics-webservice) WebserviceConfig})
+   (schema/optional-key :metrics-webservice) WebserviceConfig
+   (schema/optional-key :opentelemetry) otel/OtelConfig})
 
 (def RegistryContext
   {:registry (schema/maybe MetricRegistry)
@@ -82,7 +85,8 @@
   {:registries (schema/atom {schema/Keyword RegistryContext})
    :can-update-registry-settings? schema/Bool
    :registry-settings (schema/atom {schema/Keyword DefaultRegistrySettings})
-   :metrics-config MetricsConfig})
+   :metrics-config MetricsConfig
+   (schema/optional-key :otel-context) otel/OtelContext})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
@@ -256,11 +260,15 @@
   an empty atom for `registry-settings` and the metrics config."
   [metrics-config :- MetricsConfig]
   (let [config-with-default (maybe-add-default-to-config metrics-config)
-        registries (initialize-registries-from-config config-with-default)]
+        registries (initialize-registries-from-config config-with-default)
+        otel-ctx (otel/create-otel-context
+                  (:server-id metrics-config)
+                  (:opentelemetry metrics-config))]
     {:registries (atom registries)
      :can-update-registry-settings? true
      :registry-settings (atom {})
-     :metrics-config config-with-default}))
+     :metrics-config config-with-default
+     :otel-context otel-ctx}))
 
 (schema/defn lock-registry-settings :- MetricsServiceContext
   "Switch the `can-update-registry-settings?` boolean to false to show that it is after the `init`
@@ -301,6 +309,8 @@
   (let [registries (:registries service-context)]
     (doseq [[_ metrics-registry] @registries]
       (stop metrics-registry))
+    (when-let [otel-ctx (:otel-context service-context)]
+      (otel/shutdown-otel-context otel-ctx))
     service-context))
 
 (schema/defn ^:always-validate default-middleware

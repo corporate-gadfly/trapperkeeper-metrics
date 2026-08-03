@@ -1,5 +1,6 @@
 (def i18n-version "1.0.5")
 (def dropwizard-metrics-version "3.2.6")
+(def opentelemetry-version "1.64.0")
 
 (defproject org.openvoxproject/trapperkeeper-metrics "2.3.3-SNAPSHOT"
   :description "Trapperkeeper Metrics Service"
@@ -23,6 +24,9 @@
                          [commons-io "2.22.0"]
                          [io.dropwizard.metrics/metrics-core ~dropwizard-metrics-version]
                          [io.dropwizard.metrics/metrics-graphite ~dropwizard-metrics-version]
+                         [io.opentelemetry/opentelemetry-api ~opentelemetry-version]
+                         [io.opentelemetry/opentelemetry-sdk ~opentelemetry-version]
+                         [io.opentelemetry/opentelemetry-exporter-otlp ~opentelemetry-version]
                          [org.bouncycastle/bcpkix-jdk18on "1.84"]
                          [org.bouncycastle/bcpkix-fips "1.0.8"]
                          [org.bouncycastle/bc-fips "1.0.2.6"]
@@ -51,6 +55,9 @@
                  [cheshire]
                  [io.dropwizard.metrics/metrics-core]
                  [io.dropwizard.metrics/metrics-graphite]
+                 [io.opentelemetry/opentelemetry-api]
+                 [io.opentelemetry/opentelemetry-sdk]
+                 [io.opentelemetry/opentelemetry-exporter-otlp]
                  [org.jolokia/jolokia-server-core]
                  [org.jolokia/jolokia-service-jmx]
                  [org.jolokia/jolokia-service-serializer]

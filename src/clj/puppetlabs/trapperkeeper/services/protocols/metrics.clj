@@ -15,6 +15,13 @@
    [this]
    "Get the server-id from the `metrics` -> `server-id` part of the config.")
 
+  (get-otel-meter-provider
+   [this]
+   "Return the OpenTelemetry MeterProvider for this server.  When OTEL is
+   enabled this is an SdkMeterProvider; otherwise it is MeterProvider/noop.
+   Downstream services should call (.meterBuilder provider \"my.scope\")
+   to obtain a Meter for recording dimensional metrics.")
+
   (update-registry-settings
    [this domain settings]
    "Allows for specifying settings for a metric registry reporter that don't

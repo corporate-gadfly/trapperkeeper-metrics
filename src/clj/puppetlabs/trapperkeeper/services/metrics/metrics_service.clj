@@ -3,6 +3,7 @@
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :as tk-auth]
             [puppetlabs.trapperkeeper.services.protocols.metrics :as metrics]
             [puppetlabs.trapperkeeper.services.metrics.metrics-core :as core]
+            [puppetlabs.trapperkeeper.services.metrics.otel-core :as otel]
             [puppetlabs.trapperkeeper.services.metrics.jolokia :as jolokia]
             [puppetlabs.trapperkeeper.services :as tk-services]
             [clojure.tools.logging :as log]
@@ -54,7 +55,11 @@
 
   (get-server-id
    [this]
-   (get-in-config [:metrics :server-id])))
+   (get-in-config [:metrics :server-id]))
+
+  (get-otel-meter-provider
+   [this]
+   (get-in (tk-services/service-context this) [:otel-context :meter-provider])))
 
 (trapperkeeper/defservice metrics-webservice
   {:required [[:ConfigService get-in-config]
@@ -65,11 +70,13 @@
   (init [this context]
     (when (get-in-config [:metrics :metrics-webservice :mbeans :enabled] false)
       (log/warn "The v1 metrics endpoint is deprecated and will be removed in a future release."
-                "Use the v2 endpoint instead.")
+                "Enable the OpenTelemetry v3 endpoint instead.")
       (add-ring-handler this
                         (core/build-handler (get-route this))))
 
     (when (get-in-config [:metrics :metrics-webservice :jolokia :enabled] true)
+      (log/warn "The v2 metrics endpoint (Jolokia) is deprecated and will be removed in a future release."
+                "Enable the OpenTelemetry v3 endpoint instead.")
       (let [config (->> (get-in-config [:metrics :metrics-webservice :jolokia :servlet-init-params] {})
                         jolokia/create-servlet-config)
             ;; NOTE: Normally, these route and server lookups would be done by
@@ -87,6 +94,15 @@
          (jolokia/create-servlet auth-check-fn)
          route
          options)))
+
+    ;; v3 — OpenTelemetry metrics (Prometheus text format)
+    (when (get-in-config [:metrics :metrics-webservice :opentelemetry :enabled] true)
+      (log/info "Enabling /metrics/v3 OpenTelemetry endpoint")
+      (let [pull-reader-fn #(get-in (tk-services/service-context
+                                     (tk-services/get-service this :MetricsService))
+                                    [:otel-context :pull-reader])]
+        (add-ring-handler this
+                          (otel/build-v3-handler (get-route this) pull-reader-fn))))
 
     context)
 
